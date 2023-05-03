@@ -1,31 +1,101 @@
-use web3::futures::StreamExt;
-use web3::{transports::WebSocket, Web3};
+mod block_subscriber;
+mod block_transaction_detailer;
+mod errors;
+mod helpers;
+
+use clap::{arg, command, Command};
+use errors::handle_error;
 
 #[tokio::main]
-async fn main() -> web3::Result<()> {
-    let infura_ws_url = "wss://mainnet.infura.io/ws/v3/6376f591d7bd4ca5a4aef588675e6fa6";
-    let transport = WebSocket::new(infura_ws_url).await?;
-    let web3 = Web3::new(transport);
+async fn main() {
+    let matches = command!()
+        .subcommand_required(true)
+        .subcommand(
+            Command::new("block_txns")
+                .about("Fetch all transactions from a specific Ethereum block. Print in pretty table.")
+                .arg(arg!([BLOCK]))
+                .arg_required_else_help(true),
+        )
+        .subcommand(
+            Command::new("block_txns_csv")
+                .about("Fetch all transactions from a specific Ethereum block. Print in csv format for easy copy and paste to spreadsheet.")
+                .arg(arg!([BLOCK]))
+                .arg_required_else_help(true),
+        )
+        .subcommand(
+            Command::new("block_txns_stacked")
+                .about("Fetch all transactions from a specific Ethereum block. Print in stacked and color coded format for easy reading of an individual transaction.")
+                .arg(arg!([BLOCK]))
+                .arg_required_else_help(true),
+        )
+        .subcommand(Command::new("subscribe").about(
+            "Open a websocket to observe each Ethereum block number as it is added on chain",
+        ))
+        .get_matches();
 
-    // Get the latest block number
-    let block_number = web3.eth().block_number().await?;
-    println!("Latest block number: {:?}", block_number);
+    let subcommand = matches.subcommand();
+    let (subcommand, sub_m) = if let Some(subc) = subcommand {
+        subc
+    } else {
+        eprintln!("Missing subcommand.");
+        return;
+    };
 
-    // Subscribe to new blocks
-    let mut sub = web3.eth_subscribe().subscribe_new_heads().await?;
+    match subcommand {
+        "block_txns" => {
+            let block_number = match helpers::get_block_number(sub_m) {
+                Ok(block_number) => block_number,
+                Err(e) => {
+                    handle_error(&e.to_string());
+                    return;
+                }
+            };
 
-    println!("Subscribed to new blocks");
-
-    while let Some(head) = sub.next().await {
-        match head {
-            Ok(block) => {
-                println!("New block: {:?}", block.number.unwrap());
-            }
-            Err(e) => {
-                println!("Error: {:?}", e);
+            match block_transaction_detailer::get_transaction_details_table(block_number).await {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
             }
         }
-    }
+        "block_txns_csv" => {
+            let block_number = match helpers::get_block_number(sub_m) {
+                Ok(block_number) => block_number,
+                Err(e) => {
+                    handle_error(&e.to_string());
+                    return;
+                }
+            };
 
-    Ok(())
+            match block_transaction_detailer::get_transaction_details_csv(block_number).await {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
+            }
+        }
+        "block_txns_stacked" => {
+            let block_number = match helpers::get_block_number(sub_m) {
+                Ok(block_number) => block_number,
+                Err(e) => {
+                    handle_error(&e.to_string());
+                    return;
+                }
+            };
+
+            match block_transaction_detailer::get_transaction_details_stacked(block_number).await {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
+            }
+        }
+        "subscribe" => match block_subscriber::subscribe_to_block_list().await {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+        },
+        _ => eprintln!("Invalid subcommand. Run with --help for usage information."),
+    }
 }
