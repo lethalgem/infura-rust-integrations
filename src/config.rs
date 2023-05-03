@@ -16,6 +16,12 @@ pub struct InfuraKeys {
     pub project_id: String,
 }
 
+pub fn remove_config_file() -> Result<(), EssenError> {
+    let config_path = get_config_path()?;
+    fs::remove_file(config_path).map_err(|e| EssenError::IOError(e.to_string(), e))?;
+    Ok(())
+}
+
 pub fn get_infura_keys() -> Option<String> {
     let config_path = match get_config_path() {
         Ok(config_path) => config_path,

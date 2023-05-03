@@ -33,6 +33,9 @@ async fn main() {
         .subcommand(Command::new("subscribe").about(
             "Open a websocket to observe each Ethereum block number as it is added on chain",
         ))
+        .subcommand(Command::new("rm_config").about(
+            "Remove all config data",
+        ))
         .get_matches();
 
     let subcommand = matches.subcommand();
@@ -94,6 +97,12 @@ async fn main() {
         }
         "subscribe" => match block_subscriber::subscribe_to_block_list().await {
             Ok(_) => {}
+            Err(e) => {
+                handle_error(&e.to_string());
+            }
+        },
+        "rm_config" => match config::remove_config_file() {
+            Ok(_) => println!("Successfully removed config file"),
             Err(e) => {
                 handle_error(&e.to_string());
             }
