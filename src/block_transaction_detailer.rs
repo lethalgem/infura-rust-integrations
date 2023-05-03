@@ -1,4 +1,3 @@
-use colored::Colorize;
 // src/block_transaction_detailer.rs
 use csv::Writer;
 use prettytable::{Cell, Row, Table};
