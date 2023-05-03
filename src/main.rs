@@ -1,7 +1,9 @@
 mod block_subscriber;
 mod block_transaction_detailer;
+mod config;
 mod errors;
 mod helpers;
+mod infura_api;
 
 use clap::{arg, command, Command};
 use errors::handle_error;
@@ -54,7 +56,7 @@ async fn main() {
             match block_transaction_detailer::get_transaction_details_table(block_number).await {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}", e);
+                    handle_error(&e.to_string());
                 }
             }
         }
@@ -70,7 +72,7 @@ async fn main() {
             match block_transaction_detailer::get_transaction_details_csv(block_number).await {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}", e);
+                    handle_error(&e.to_string());
                 }
             }
         }
@@ -86,14 +88,14 @@ async fn main() {
             match block_transaction_detailer::get_transaction_details_stacked(block_number).await {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}", e);
+                    handle_error(&e.to_string());
                 }
             }
         }
         "subscribe" => match block_subscriber::subscribe_to_block_list().await {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("{}", e);
+                handle_error(&e.to_string());
             }
         },
         _ => eprintln!("Invalid subcommand. Run with --help for usage information."),

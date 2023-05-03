@@ -1,17 +1,13 @@
 use web3::futures::StreamExt;
-use web3::{transports::WebSocket, Web3};
 
-pub async fn subscribe_to_block_list() -> web3::Result<()> {
-    let infura_ws_url = "wss://mainnet.infura.io/ws/v3/6376f591d7bd4ca5a4aef588675e6fa6";
-    let transport = WebSocket::new(infura_ws_url).await?;
-    let web3 = Web3::new(transport);
+use crate::errors::EssenError;
+use crate::{config, infura_api};
 
-    // Get the latest block number
-    let block_number = web3.eth().block_number().await?;
-    println!("Latest block number: {:?}", block_number);
+pub async fn subscribe_to_block_list() -> Result<(), EssenError> {
+    let project_id = config::get_infura_keys().ok_or_else(|| EssenError::InfuraProjectIdError)?;
+    let infura_api = infura_api::InfuraApi::new(&project_id);
 
-    // Subscribe to new blocks
-    let mut sub = web3.eth_subscribe().subscribe_new_heads().await?;
+    let mut sub = infura_api.subscribe_to_new_blocks().await?;
 
     println!("Subscribed to new blocks");
 

@@ -1,14 +1,15 @@
 // src/block_transaction_detailer.rs
 use csv::Writer;
 use prettytable::{Cell, Row, Table};
-use web3::transports::Http;
-use web3::types::{Block, BlockId, BlockNumber, Transaction, U256};
-use web3::Web3;
 
 use crate::errors::EssenError;
+use crate::{config, helpers, infura_api};
 
 pub async fn get_transaction_details_table(block_number: u64) -> Result<(), EssenError> {
-    let block = fetch_block(block_number).await?;
+    let project_id = config::get_infura_keys().ok_or_else(|| EssenError::InfuraProjectIdError)?;
+    let infura_api = infura_api::InfuraApi::new(&project_id);
+
+    let block = infura_api.fetch_block(block_number).await?;
 
     if let Some(block) = block {
         println!(
@@ -28,8 +29,8 @@ pub async fn get_transaction_details_table(block_number: u64) -> Result<(), Esse
         ]));
 
         for tx in block.transactions {
-            let value_eth = to_f64(tx.value) / 1e18;
-            let gas_price_eth = to_f64(tx.gas_price) / 1e18;
+            let value_eth = helpers::to_f64(tx.value) / 1e18;
+            let gas_price_eth = helpers::to_f64(tx.gas_price) / 1e18;
             let decimal_count = 30;
 
             table.add_row(Row::new(vec![
@@ -52,7 +53,10 @@ pub async fn get_transaction_details_table(block_number: u64) -> Result<(), Esse
 }
 
 pub async fn get_transaction_details_csv(block_number: u64) -> Result<(), EssenError> {
-    let block = fetch_block(block_number).await?;
+    let project_id = config::get_infura_keys().ok_or_else(|| EssenError::InfuraProjectIdError)?;
+    let infura_api = infura_api::InfuraApi::new(&project_id);
+
+    let block = infura_api.fetch_block(block_number).await?;
 
     if let Some(block) = block {
         println!(
@@ -68,8 +72,8 @@ pub async fn get_transaction_details_csv(block_number: u64) -> Result<(), EssenE
             .map_err(|e| EssenError::Csv(e.to_string(), e))?;
 
         for tx in block.transactions {
-            let value_eth = to_f64(tx.value) / 1e18;
-            let gas_price_eth = to_f64(tx.gas_price) / 1e18;
+            let value_eth = helpers::to_f64(tx.value) / 1e18;
+            let gas_price_eth = helpers::to_f64(tx.gas_price) / 1e18;
             let from_str = tx
                 .from
                 .map(|addr| format!("{:?}", addr))
@@ -101,7 +105,10 @@ pub async fn get_transaction_details_csv(block_number: u64) -> Result<(), EssenE
 }
 
 pub async fn get_transaction_details_stacked(block_number: u64) -> Result<(), EssenError> {
-    let block = fetch_block(block_number).await?;
+    let project_id = config::get_infura_keys().ok_or_else(|| EssenError::InfuraProjectIdError)?;
+    let infura_api = infura_api::InfuraApi::new(&project_id);
+
+    let block = infura_api.fetch_block(block_number).await?;
 
     if let Some(block) = block {
         println!(
@@ -117,8 +124,8 @@ pub async fn get_transaction_details_stacked(block_number: u64) -> Result<(), Es
             .map_err(|e| EssenError::Csv(e.to_string(), e))?;
 
         for tx in block.transactions {
-            let value_eth = to_f64(tx.value) / 1e18;
-            let gas_price_eth = to_f64(tx.gas_price) / 1e18;
+            let value_eth = helpers::to_f64(tx.value) / 1e18;
+            let gas_price_eth = helpers::to_f64(tx.gas_price) / 1e18;
             let from_str = tx
                 .from
                 .map(|addr| format!("{:?}", addr))
@@ -140,24 +147,4 @@ pub async fn get_transaction_details_stacked(block_number: u64) -> Result<(), Es
             "No block found for the specified block number".to_string(),
         ))
     }
-}
-
-fn to_f64(value: U256) -> f64 {
-    let (quotient, remainder) = value.div_mod(U256::from(10u64.pow(18)));
-    let quotient_f64 = quotient.low_u64() as f64;
-    let remainder_f64 = remainder.low_u64() as f64 / 1e18;
-    quotient_f64 + remainder_f64
-}
-
-async fn fetch_block(block_number: u64) -> Result<Option<Block<Transaction>>, EssenError> {
-    let infura_http_url = "https://mainnet.infura.io/v3/6376f591d7bd4ca5a4aef588675e6fa6";
-    let transport = Http::new(infura_http_url).map_err(|e| EssenError::Web3(e.to_string(), e))?;
-    let web3 = Web3::new(transport);
-    let block_number: BlockId = BlockNumber::Number(block_number.into()).into();
-    let block: Option<Block<Transaction>> = web3
-        .eth()
-        .block_with_txs(block_number)
-        .await
-        .map_err(|e| EssenError::Web3(e.to_string(), e))?;
-    Ok(block)
 }

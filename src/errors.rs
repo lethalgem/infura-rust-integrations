@@ -23,4 +23,22 @@ pub enum EssenError {
 
     #[error("std error: {0}")]
     Std(String, #[source] std::io::Error),
+
+    #[error("Failed to find configuration directory")]
+    ConfigDirNotFound,
+
+    #[error("{0}")]
+    IOError(String, #[source] std::io::Error),
+
+    #[error("{0}")]
+    JsonError(String, #[source] serde_json::Error),
+
+    #[error("Failed to read the stored config data")]
+    ConfigReadError,
+
+    #[error("Failed to parse the stored config data")]
+    ConfigParseError,
+
+    #[error("Failed to get infura project id")]
+    InfuraProjectIdError,
 }
